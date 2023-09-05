@@ -2,7 +2,6 @@ package com.example.geoquiz
 
 import android.os.Bundle
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -10,8 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 	private lateinit var trueButton: Button
 	private lateinit var falseButton: Button
-	private lateinit var nextButton: ImageButton
-	private lateinit var prevButton: ImageButton
+	private lateinit var nextButton: Button
 	private lateinit var questionTextView: TextView
 
 	private val questionBank = listOf(
@@ -22,16 +20,17 @@ class MainActivity : AppCompatActivity() {
 		Question(R.string.question_americas, true),
 		Question(R.string.question_asia, true)
 	)
+	private val answers = arrayOfNulls<Boolean>(6)
 	private var currentIndex = 0
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_main)
+		currentIndex = savedInstanceState?.getInt("index") ?: 0
 
 		trueButton = findViewById(R.id.true_button)
 		falseButton = findViewById(R.id.false_button)
 		nextButton = findViewById(R.id.next_button)
-		prevButton = findViewById(R.id.prev_button)
 		questionTextView = findViewById(R.id.question_text_view)
 
 		trueButton.setOnClickListener {
@@ -44,13 +43,6 @@ class MainActivity : AppCompatActivity() {
 			currentIndex = (currentIndex + 1) % questionBank.size
 			updateQuestion()
 		}
-		prevButton.setOnClickListener {
-			currentIndex = if (currentIndex == 0)
-				questionBank.size - 1
-			else
-				currentIndex - 1
-			updateQuestion()
-		}
 
 		updateQuestion()
 	}
@@ -58,14 +50,34 @@ class MainActivity : AppCompatActivity() {
 	private fun updateQuestion() {
 		val questionTextResId = questionBank[currentIndex].textResId
 		questionTextView.setText(questionTextResId)
+		trueButton.isEnabled = true
+		falseButton.isEnabled = true
 	}
 
 	private fun checkAnswer(userAnswer: Boolean) {
-		val messageResId = if (userAnswer == questionBank[currentIndex].answer) {
-			R.string.correct_toast
+		val messageResId: Int
+		if (userAnswer == questionBank[currentIndex].answer) {
+			messageResId = R.string.correct_toast
+			answers[currentIndex] = true
 		} else {
-			R.string.incorrect_toast
+			messageResId = R.string.incorrect_toast
+			answers[currentIndex] = false
 		}
 		Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
+		trueButton.isEnabled = false
+		falseButton.isEnabled = false
+		if (currentIndex == 5) {
+			var counter = 0f
+			for (i in answers) {
+				if (i == true)
+					counter++
+			}
+			Toast.makeText(this, "Your score is: ${(counter / 6 * 100).toInt()}%", Toast.LENGTH_SHORT).show()
+		}
+	}
+
+	override fun onSaveInstanceState(outState: Bundle) {
+		super.onSaveInstanceState(outState)
+		outState.putInt("index", currentIndex)
 	}
 }
