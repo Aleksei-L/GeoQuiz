@@ -5,6 +5,10 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProviders
+
+private const val KEY_INDEX = "index"
+private const val KEY_ANSWERS = "answers"
 
 class MainActivity : AppCompatActivity() {
 	private lateinit var trueButton: Button
@@ -12,21 +16,16 @@ class MainActivity : AppCompatActivity() {
 	private lateinit var nextButton: Button
 	private lateinit var questionTextView: TextView
 
-	private val questionBank = listOf(
-		Question(R.string.question_australia, true),
-		Question(R.string.question_oceans, true),
-		Question(R.string.question_mideast, false),
-		Question(R.string.question_africa, false),
-		Question(R.string.question_americas, true),
-		Question(R.string.question_asia, true)
-	)
-	private val answers = arrayOfNulls<Boolean>(6)
-	private var currentIndex = 0
+	private val quizViewModel by lazy {
+		ViewModelProviders.of(this).get(QuizViewModel::class.java)
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_main)
-		currentIndex = savedInstanceState?.getInt("index") ?: 0
+
+		quizViewModel.currentIndex = savedInstanceState?.getInt(KEY_INDEX, 0) ?: 0
+		quizViewModel.answers = savedInstanceState?.getBooleanArray(KEY_ANSWERS) ?: BooleanArray(6)
 
 		trueButton = findViewById(R.id.true_button)
 		falseButton = findViewById(R.id.false_button)
@@ -40,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 			checkAnswer(false)
 		}
 		nextButton.setOnClickListener {
-			currentIndex = (currentIndex + 1) % questionBank.size
+			quizViewModel.moveToNext()
 			updateQuestion()
 		}
 
@@ -48,7 +47,7 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun updateQuestion() {
-		val questionTextResId = questionBank[currentIndex].textResId
+		val questionTextResId = quizViewModel.currentQuestionText
 		questionTextView.setText(questionTextResId)
 		trueButton.isEnabled = true
 		falseButton.isEnabled = true
@@ -56,28 +55,33 @@ class MainActivity : AppCompatActivity() {
 
 	private fun checkAnswer(userAnswer: Boolean) {
 		val messageResId: Int
-		if (userAnswer == questionBank[currentIndex].answer) {
+		if (userAnswer == quizViewModel.currentQuestionAnswer) {
 			messageResId = R.string.correct_toast
-			answers[currentIndex] = true
+			quizViewModel.answers[quizViewModel.currentIndex] = true
 		} else {
 			messageResId = R.string.incorrect_toast
-			answers[currentIndex] = false
+			quizViewModel.answers[quizViewModel.currentIndex] = false
 		}
 		Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
 		trueButton.isEnabled = false
 		falseButton.isEnabled = false
-		if (currentIndex == 5) {
+		if (quizViewModel.currentIndex == 5) {
 			var counter = 0f
-			for (i in answers) {
-				if (i == true)
+			for (i in quizViewModel.answers) {
+				if (i)
 					counter++
 			}
-			Toast.makeText(this, "Your score is: ${(counter / 6 * 100).toInt()}%", Toast.LENGTH_SHORT).show()
+			Toast.makeText(
+				this,
+				"Your score is: ${(counter / 6 * 100).toInt()}%",
+				Toast.LENGTH_SHORT
+			).show()
 		}
 	}
 
 	override fun onSaveInstanceState(outState: Bundle) {
 		super.onSaveInstanceState(outState)
-		outState.putInt("index", currentIndex)
+		outState.putInt(KEY_INDEX, quizViewModel.currentIndex)
+		outState.putBooleanArray(KEY_ANSWERS, quizViewModel.answers)
 	}
 }
