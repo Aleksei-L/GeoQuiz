@@ -1,5 +1,7 @@
 package com.example.geoquiz
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -8,12 +10,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
 
 private const val KEY_INDEX = "index"
-private const val KEY_ANSWERS = "answers"
+private const val KEY_CHEAT = "cheat"
+private const val REQUEST_CODE_CHEAT = 0
 
 class MainActivity : AppCompatActivity() {
 	private lateinit var trueButton: Button
 	private lateinit var falseButton: Button
 	private lateinit var nextButton: Button
+	private lateinit var cheatButton: Button
 	private lateinit var questionTextView: TextView
 
 	private val quizViewModel by lazy {
@@ -25,11 +29,12 @@ class MainActivity : AppCompatActivity() {
 		setContentView(R.layout.activity_main)
 
 		quizViewModel.currentIndex = savedInstanceState?.getInt(KEY_INDEX, 0) ?: 0
-		quizViewModel.answers = savedInstanceState?.getBooleanArray(KEY_ANSWERS) ?: BooleanArray(6)
+		quizViewModel.isCheated = savedInstanceState?.getBoolean(KEY_CHEAT, false) ?: false
 
 		trueButton = findViewById(R.id.true_button)
 		falseButton = findViewById(R.id.false_button)
 		nextButton = findViewById(R.id.next_button)
+		cheatButton = findViewById(R.id.cheat_button)
 		questionTextView = findViewById(R.id.question_text_view)
 
 		trueButton.setOnClickListener {
@@ -41,6 +46,12 @@ class MainActivity : AppCompatActivity() {
 		nextButton.setOnClickListener {
 			quizViewModel.moveToNext()
 			updateQuestion()
+			quizViewModel.isCheated = false
+		}
+		cheatButton.setOnClickListener {
+			val intent =
+				CheatActivity.newIntent(this@MainActivity, quizViewModel.currentQuestionAnswer)
+			startActivityForResult(intent, REQUEST_CODE_CHEAT)
 		}
 
 		updateQuestion()
@@ -49,39 +60,29 @@ class MainActivity : AppCompatActivity() {
 	private fun updateQuestion() {
 		val questionTextResId = quizViewModel.currentQuestionText
 		questionTextView.setText(questionTextResId)
-		trueButton.isEnabled = true
-		falseButton.isEnabled = true
 	}
 
 	private fun checkAnswer(userAnswer: Boolean) {
-		val messageResId: Int
-		if (userAnswer == quizViewModel.currentQuestionAnswer) {
-			messageResId = R.string.correct_toast
-			quizViewModel.answers[quizViewModel.currentIndex] = true
-		} else {
-			messageResId = R.string.incorrect_toast
-			quizViewModel.answers[quizViewModel.currentIndex] = false
+		val messageResId = when {
+			quizViewModel.isCheated -> R.string.judgment_toast
+			userAnswer == quizViewModel.currentQuestionAnswer -> R.string.correct_toast
+			else -> R.string.incorrect_toast
 		}
 		Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
-		trueButton.isEnabled = false
-		falseButton.isEnabled = false
-		if (quizViewModel.currentIndex == 5) {
-			var counter = 0f
-			for (i in quizViewModel.answers) {
-				if (i)
-					counter++
-			}
-			Toast.makeText(
-				this,
-				"Your score is: ${(counter / 6 * 100).toInt()}%",
-				Toast.LENGTH_SHORT
-			).show()
-		}
 	}
 
 	override fun onSaveInstanceState(outState: Bundle) {
 		super.onSaveInstanceState(outState)
 		outState.putInt(KEY_INDEX, quizViewModel.currentIndex)
-		outState.putBooleanArray(KEY_ANSWERS, quizViewModel.answers)
+		outState.putBoolean(KEY_CHEAT, quizViewModel.isCheated)
+	}
+
+	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		super.onActivityResult(requestCode, resultCode, data)
+		if (resultCode != Activity.RESULT_OK)
+			return
+
+		if (requestCode == REQUEST_CODE_CHEAT)
+			quizViewModel.isCheated = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
 	}
 }

@@ -11,8 +11,8 @@ class QuizViewModel : ViewModel() {
 		Question(R.string.question_americas, true),
 		Question(R.string.question_asia, true)
 	)
-	var answers = BooleanArray(6)
 	var currentIndex = 0
+	var isCheated = false
 
 	val currentQuestionAnswer: Boolean
 		get() = questionBank[currentIndex].answer
